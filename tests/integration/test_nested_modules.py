@@ -9,7 +9,7 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sample_package"
 
 def copy_sample_package(dest_dir: Path, backend_dir: Path) -> Path:
     """Copy the sample package to test directory and set up pyproject.toml."""
-    dest_path = dest_dir / "sample_package"
+    dest_path = dest_dir  # / "sample_package"
 
     # Copy the Cython source files
     shutil.copytree(FIXTURE_DIR, dest_path / "sample_package")
@@ -33,35 +33,10 @@ language = "c"
 compiler_directives = {{ language_level = "3" }}
 """
 
-    with open(dest_path / "pyproject.toml", "w") as f:
+    with open(dest_path / "sample_package/pyproject.toml", "w") as f:
         f.write(content)
 
     return dest_path
-
-
-def create_test_script(script_dir: Path) -> Path:
-    """Create a test script that imports and verifies nested modules."""
-    script = script_dir / "verify_nested_imports.py"
-    script.write_text("""
-from sample_package.core.base import BaseOp
-from sample_package.utils.helpers import Helper
-from sample_package.extensions.advanced import Advanced
-from sample_package.extensions.specialized.expert import Expert
-
-# Test the entire dependency chain
-base_op = BaseOp(2.0)
-helper = Helper(base_op)
-advanced = Advanced(helper)
-expert = Expert(advanced, BaseOp(3.0))
-
-# Test computation through the hierarchy
-result = expert.deep_process()
-expected = ((3.0 * 2.0 + 1.0) * 3.0 + (2.0 * 2.0)) * 2.0
-assert abs(result - expected) < 1e-10, f"Expected {expected}, got {result}"
-
-print("All nested module tests passed!")
-""")
-    return script
 
 
 def test_nested_cython_modules(tmp_path):
@@ -71,7 +46,9 @@ def test_nested_cython_modules(tmp_path):
     backend_dir = Path(__file__).parent.parent.parent.absolute()
 
     package_dir = copy_sample_package(tmp_path, backend_dir)
-    test_script = create_test_script(tmp_path)
+    test_script = (
+        tmp_path / "sample_package/scripts/verify_nested_imports.py"
+    )  # create_test_script(tmp_path)
 
     try:
         # Regular installation
