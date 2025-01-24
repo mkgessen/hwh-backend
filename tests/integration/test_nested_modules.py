@@ -36,11 +36,25 @@ compiler_directives = {{ language_level = "3" }}
     with open(dest_path / "sample_package/pyproject.toml", "w") as f:
         f.write(content)
 
-    return dest_path
+    return dest_path / "sample_package"
+
+
+def create_manifest_in(package_path: Path):
+    manifest_content = """
+include README.md
+recursive-include sample_package *.pyx
+recursive-include sample_package *.pxd
+recursive-include sample_package *.c
+recursive-include sample_package *.h """
+
+    with open(package_path / "MANIFEST.in", "w") as f:
+        f.write(manifest_content)
 
 
 def test_nested_cython_modules(tmp_path):
     """Test building and using packages with nested Cython modules."""
+    # TODO: Add a test where we alter editable install and python -m build
+    # TODO: Break into smaller tests that test only one thing
     venv_dir = create_virtual_env(tmp_path / "venv")
     setup_test_env(venv_dir)
     backend_dir = Path(__file__).parent.parent.parent.absolute()
@@ -71,10 +85,13 @@ def test_nested_cython_modules(tmp_path):
         # Test python -m build in separate venv
         build_venv = create_virtual_env(tmp_path / "venv_build")
         setup_test_env(build_venv)
+        create_manifest_in(package_dir)
+        (package_dir / "README.md").touch()
         run_in_venv(
             build_venv,
             ["python", "-m", "build", "--no-isolation"],
             cwd=str(package_dir),
+            show_output=True,
         )
 
         # Verify the wheel

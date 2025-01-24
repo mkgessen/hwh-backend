@@ -16,7 +16,6 @@ _EXTENSIONS_BUILT = False
 
 
 def debug_print(*args, **kwargs):
-    """Helper function for debug output"""
     print("[DEBUG]", *args, **kwargs)
 
 
@@ -92,6 +91,7 @@ def _get_ext_modules(project: PyProject):
 
     # Create Extensions
     ext_modules = []
+    ext_locations = {}
     for pyx_file in pyx_files:
         # Convert path to proper module path
         rel_path = pyx_file.relative_to(package_dir)
@@ -106,7 +106,9 @@ def _get_ext_modules(project: PyProject):
             module_parts.append(rel_path.stem)
 
         module_path = ".".join(module_parts)
+        ext_locations[module_parts[-1]] = "/".join(module_parts)
         debug_print(f"Constructed module path: {module_path}")
+        debug_print(f"Constructed location: {ext_locations}")
 
         ext = Extension(
             module_path,
@@ -121,7 +123,7 @@ def _get_ext_modules(project: PyProject):
     debug_print(f"\nTotal extensions to build: {len(ext_modules)}")
     debug_print("=== Finished _get_ext_modules ===\n")
 
-    return cythonize(
+    cythonized = cythonize(
         ext_modules,
         nthreads=config.nthreads,
         force=config.force,
@@ -130,8 +132,10 @@ def _get_ext_modules(project: PyProject):
         include_path=include_dirs,  # This helps find .pxd files
     )
 
+    return cythonized
 
-def _build_extension():
+
+def _build_extension(inplace: bool = False):
     """Build the extension modules."""
     debug_print("\n=== Starting _build_extension ===")
     global _EXTENSIONS_BUILT
@@ -141,6 +145,7 @@ def _build_extension():
         return
 
     debug_print("Building extensions for the first time")
+    debug_print(f"Inplace build: {inplace}")
     project = PyProject(Path())
     name = project.package_name
     debug_print(f"Package name: {name}")
@@ -149,23 +154,12 @@ def _build_extension():
     dist.has_ext_modules = lambda: True
 
     cmd = build_ext(dist)
+    cmd.inplace = inplace  #
     cmd.ensure_finalized()
     debug_print("Starting build_ext.run()")
     cmd.run()
     debug_print("Finished build_ext.run()")
 
-    # Copy built extensions to source directory
-    built_files = cmd.get_outputs()
-    debug_print(f"Built files: {built_files}")
-
-    # for output in built_files:
-    #     if os.path.exists(output):
-    #         filename = os.path.basename(output)
-    #         target_dir = Path(name)
-    #         target_path = target_dir / filename
-    #         debug_print(f"Copying {output} to {target_path}")
-    #         shutil.copy2(output, target_path)
-    #
     _EXTENSIONS_BUILT = True
     debug_print("=== Finished _build_extension ===\n")
 
@@ -177,7 +171,7 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     debug_print(f"Config settings: {config_settings}")
     debug_print(f"Metadata directory: {metadata_directory}")
 
-    _build_extension()
+    _build_extension(inplace=False)  # Regular build, don't alter source tree
 
     project = PyProject(Path())
     name = project.package_name
@@ -233,10 +227,18 @@ def build_editable(wheel_directory, config_settings=None, metadata_directory=Non
     debug_print(f"Config settings: {config_settings}")
     debug_print(f"Metadata directory: {metadata_directory}")
 
-    _build_extension()
+    _build_extension(inplace=True)  # Editable install=inplace
 
     debug_print("Calling setuptools build_editable")
     result = _build_editable(wheel_directory, config_settings, metadata_directory)
     debug_print(f"Editable build result: {result}")
     debug_print("=== Finished build_editable ===\n")
     return result
+
+
+def build_sdist(sdist_directory, config_settings=None):
+    """Build a source distribution."""
+    from setuptools.build_meta import build_sdist as _build_sdist
+
+    # NOTE: The content of the produced wheel is managed by MANIFEST.in
+    return _build_sdist(sdist_directory, config_settings)
