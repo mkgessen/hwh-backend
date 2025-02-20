@@ -1,3 +1,4 @@
+import setuptools  # This must come before importing Cython!
 import json
 import shutil
 import site
