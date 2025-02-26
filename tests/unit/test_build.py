@@ -1,32 +1,42 @@
 import pytest
+from pathlib import Path
 
 from hwh_backend.build import (
     _parse_build_settings,
-    find_cython_files,
+    _collect_pyx_paths,
 )
 
 
 @pytest.mark.parametrize(
-    "sources,exclude_dirs,file_structure,expected_count",
+    "sources,exclude_dirs,package_paths,file_structure,expected_count",
     [
-        (["a.pyx"], ["foo"], {"test_project/": ["foo.pyx", "a.pyx", "x.pyx"]}, 1),
+        (
+            ["test_project/a.pyx"],
+            ["foo"],
+            ["test_project"],
+            {"test_project/": ["foo.pyx", "a.pyx", "x.pyx"]},
+            1
+        ),
         (
             # sources
             None,
             # exclude_dirs
-            ["foo/"],
+            ["test_project/foo/"],
+            # package_paths
+            ["test_project", "test_project/include_me", "test_project/foo"],
             # file structure
             {
                 "test_project/": ["foo.pyx", "a.pyx"],
                 "test_project/include_me": ["pick.pyx"],
                 "test_project/foo": ["skip.pyx"],
             },
-            # num expected files after find_cython_files()
+            # num expected files after _collect_pyx_paths()
             3,
         ),
         (
             None,
             None,
+            ["test_project", "test_project/sub"],
             {
                 "test_project/": ["a.pyx", "b.pyx"],
                 "test_project/sub/": ["c.pyx", "d.pyx"],
@@ -35,8 +45,8 @@ from hwh_backend.build import (
         ),
     ],
 )
-def test_find_cython_files_combinations(
-    tmp_path, sources, exclude_dirs, file_structure, expected_count
+def test_collect_pyx_paths_combinations(
+        tmp_path, sources, exclude_dirs, package_paths, file_structure, expected_count
 ):
     # Create test structure
     for dir_path, files in file_structure.items():
@@ -45,8 +55,10 @@ def test_find_cython_files_combinations(
         for f in files:
             (full_dir / f).touch()
 
-    pkg_dir = tmp_path / "test_project"
-    result = find_cython_files(pkg_dir, sources=sources, exclude_dirs=exclude_dirs)
+    package_paths = [tmp_path/pkg for pkg in package_paths]
+    sources = [tmp_path/src for src in sources] if sources else None
+    exclude_dirs = [tmp_path/excl for excl in exclude_dirs] if exclude_dirs else None
+    result = _collect_pyx_paths(package_paths, sources=sources, exclude_dirs=exclude_dirs)
     print(result)
     assert len(result) == expected_count
 
