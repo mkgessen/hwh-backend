@@ -387,7 +387,8 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     # Build extensions first, this now handles all the Distribution setup
     dist_kwargs = _build_extension(
         _is_editable_install(), config_settings=config_settings
-    )
+    ) | {"install_requires": [str(d) for d in project.runtime_dependencies],
+         "extras_require": project.toml.get("project", {}).get("optional-dependencies", None)}
 
     from wheel.bdist_wheel import bdist_wheel as wheel_command
 
