@@ -11,32 +11,21 @@ class LogLevel(StrEnum):
     WARNING = "warning"
 
 
-def _parse_verbose_level(config_settings: Optional[dict[str, str]] = None) -> int:
+def _parse_log_level(level: str) -> int:
     """Parse verbosity level from config settings.
     During pip install/build, verbosity is passed via --config-setting verbose="debug"
     """
-    log_level = LogLevel.WARNING
-    if not config_settings:
-        return logging.WARNING
-
-    if log_level_str := config_settings.get("verbose"):
-        try:
-            log_level = LogLevel(log_level_str)
-        except ValueError:
-            logger.error(f"Log level {log_level_str} is not valid log level")
-
-    match log_level:
-        case LogLevel.DEBUG:
-            return logging.DEBUG
-        case LogLevel.INFO:
-            return logging.INFO
-        case LogLevel.WARNING:
-            return logging.WARNING
+    match level.lower():
+        case "debug": return logging.DEBUG
+        case "info": return logging.INFO
+        case "warning": return logging.WARNING
+        case _: raise ValueError("log level must be one of {debug, info, warning}")
 
 
 def setup_logging(config_settings: Optional[dict[str, str]] = None):
     """Configure logging based on config settings."""
-    log_level = _parse_verbose_level(config_settings)
+    log_level = (_parse_log_level(config_settings.get("verbose", "warning"))
+                 if config_settings else logging.WARNING)
 
     logger.setLevel(log_level)
 
@@ -45,18 +34,18 @@ def setup_logging(config_settings: Optional[dict[str, str]] = None):
         logger.removeHandler(handler)
 
     # Create console handler
-    ch = logging.StreamHandler()
-    ch.setLevel(log_level)
+    below_warning = logging.StreamHandler()
+    below_warning.setLevel(logging.DEBUG)
+    below_warning.addFilter(lambda m: m.levelno < logging.WARNING)
+    warning_and_above = logging.StreamHandler()
+    warning_and_above.setLevel(logging.WARNING)
 
     # Format to match pip's output style
-    if log_level >= logging.WARNING:
-        formatter = logging.Formatter("  hwh-backend: %(message)s")
-    else:
-        formatter = logging.Formatter("%(levelname)s: hwh-backend: %(message)s")
+    warning_and_above.setFormatter(logging.Formatter("  hwh-backend: %(message)s"))
+    below_warning.setFormatter(logging.Formatter("%(levelname)s: hwh-backend: %(message)s"))
 
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
+    logger.addHandler(below_warning)
+    logger.addHandler(warning_and_above)
 
     # Log initial setup
-    if log_level >= logging.WARNING:
-        logger.debug(f"Backend logging initialized (verbosity={log_level})")
+    logger.debug(f"Backend logging initialized (verbosity={log_level})")
