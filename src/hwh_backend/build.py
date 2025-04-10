@@ -130,6 +130,7 @@ def _get_ext_modules(project: PyProject, config_settings: Optional[dict] = None)
     global _CONFIG_OPTIONS
     if not _CONFIG_OPTIONS:
         _CONFIG_OPTIONS = _parse_build_settings(config_settings)
+
     logger.debug(f"Parsed build settings: {_CONFIG_OPTIONS}")
 
     # Create directory lists for Extension ctor and cythonize()
@@ -177,6 +178,11 @@ def _get_ext_modules(project: PyProject, config_settings: Optional[dict] = None)
         pyx_files.extend(pkg_pyx_files)
     logger.debug(f"Found .pyx files: {pyx_files}")
 
+    linetrace =  _CONFIG_OPTIONS.get("linetrace", False)
+    extra_compile_args = config.extra_compile_args
+    if linetrace:
+        extra_compile_args += ["-DCYTHON_TRACE_NOGIL=1"]
+
     # Create Extensions
     ext_modules = []
     for pyx_file in pyx_files:
@@ -208,7 +214,7 @@ def _get_ext_modules(project: PyProject, config_settings: Optional[dict] = None)
             language=config.language,
             library_dirs=library_dirs,
             libraries=config.libraries,
-            extra_compile_args=config.extra_compile_args,
+            extra_compile_args=extra_compile_args,
             extra_link_args=config.extra_link_args,
             runtime_library_dirs=runtime_library_dirs,
         )
@@ -224,16 +230,22 @@ def _get_ext_modules(project: PyProject, config_settings: Optional[dict] = None)
     nthreads = _CONFIG_OPTIONS.get("nthreads", config.nthreads)
     force = _CONFIG_OPTIONS.get("force", config.force)
     annotate = _CONFIG_OPTIONS.get("annotate", config.annotate)
+
+    compiler_directives = config.compiler_directives.as_dict()
+    if linetrace:
+        compiler_directives["linetrace"] = True
+
     logger.debug(f"\n=== FORCE = {force} ")
     logger.debug(f"\n=== ANNOTATE = {annotate} ")
     logger.debug(f"\n=== NTHREADS = {nthreads} ")
+    logger.debug(f"\n=== LINETRACE = {linetrace} ")
 
     cythonized = cythonize(
         ext_modules,
         nthreads=nthreads,
         force=force,
         annotate=annotate,
-        compiler_directives=config.compiler_directives.as_dict(),
+        compiler_directives=compiler_directives,
         include_path=include_dirs,  # This helps find .pxd files
     )
 
@@ -326,8 +338,11 @@ def _parse_build_settings(config_settings: dict | None = None) -> dict[str, bool
         if force := config_settings.get("force"):
             result["force"] = force.lower() == "true"
 
-    except Exception as e:
-        logger.error(f"Error parsing config settings: {e}")
+        if config_settings.get("linetrace"):
+            result["linetrace"] = True
+
+    except Exception:
+        logger.exception("Error parsing config settings")
         return {}
 
     return result
