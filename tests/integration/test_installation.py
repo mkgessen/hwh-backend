@@ -1,3 +1,4 @@
+from ..utils.package_utils import create_test_package
 from ..utils.venv_utils import run_in_venv
 from ..utils.verification_utils import verify_editable_install, verify_installation
 
@@ -64,3 +65,34 @@ print("Wheel installation successful!")
     script_path = simple_cython_package / "scripts/verify_wheel.py"
     script_path.write_text(verify_script)
     verify_installation(test_env, script_path, "Wheel installation successful!")
+
+
+def test_dependency_installation(test_env, tmp_path, backend_dir):
+    # Create a simple package with dependencies
+    cython_files = {
+        "simple.pyx": """
+def dependencies_available():
+    import numpy as np
+    import pandas as pd
+    return "Dependencies OK"
+"""
+    }
+
+    # Create test package with specific dependencies
+    package_dir = create_test_package(
+        tmp_path,
+        "dependency-test",
+        cython_files,
+        backend_dir,
+        dependencies=["numpy>=1.20.0", "pandas>=1.3.0"],
+    )
+
+    run_in_venv(
+        test_env,
+        ["pip", "install", str(package_dir), "--no-build-isolation"],
+        show_output=True,
+    )
+
+    pip_freeze = run_in_venv(test_env, ["pip", "freeze"])
+    assert "numpy==" in pip_freeze.stdout
+    assert "pandas==" in pip_freeze.stdout
