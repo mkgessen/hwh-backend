@@ -193,11 +193,4 @@ class PyProject:
 
     def get_all_package_paths(self) -> list[Path]:
         """Get paths for all configured packages."""
-        # For src layout, we only want the root package path
-        # added to stop duplicates
-        # FIXME(jbayn): Is above comment because we crawl the package for every
-        #               subpackage cython file? We should not do that.
-        if len(self.packages) > 0:
-            root_pkg = self.packages[0].split(".")[0]
-            return [self.get_package_path(root_pkg)]
-        return []
+        return [self.get_package_path(pkg) for pkg in self.packages]

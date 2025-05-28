@@ -2,9 +2,12 @@ import json
 import shutil
 import site
 import sysconfig
+import warnings
+from collections.abc import Sequence
+from itertools import chain
 from importlib.metadata import distributions
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from Cython.Build import cythonize
 from setuptools.build_meta import (
@@ -64,45 +67,6 @@ def get_sitepackages(option: SitePackages):
             return []
 
 
-def find_cython_files(
-    source_dir: Path,
-    sources: Optional[List[Union[str, Path]]] = None,
-    exclude_dirs: Optional[List[str]] = None,
-) -> List[Path]:
-    """Find all Cython source files in the package directory."""
-    logger.debug(f"Searching for Cython files in: {source_dir}")
-    logger.debug(f"Explicit sources: {sources}")
-    logger.debug(f"Exclude dirs: {exclude_dirs}")
-
-    if sources:
-        # Convert all sources to Path objects relative to source_dir
-        res = [
-            source_dir / src if isinstance(src, str) else src
-            for src in sources
-            if str(src).endswith(".pyx")
-        ]
-        logger.debug(f"Using explicit sources: {res}")
-        return res
-
-    all_pyx = list(source_dir.rglob("*.pyx"))
-    logger.debug(f"Found all .pyx files: {all_pyx}")
-
-    # FIXME: something wrong with types here
-    # Filter out all directories that are excluded
-    exclude_dirs = set(exclude_dirs or [])
-    if exclude_dirs:
-        # Convert exclude_dirs to full paths relative to source_dir
-        exclude_paths = {source_dir / excluded for excluded in exclude_dirs}
-        logger.debug(f"Exclude paths: {exclude_paths}")
-        filtered = [
-            pyx
-            for pyx in all_pyx
-            if not any(exclude_path in pyx.parents for exclude_path in exclude_paths)
-        ]
-        logger.debug(f"After exclusion: {filtered}")
-        return filtered
-
-    return list(all_pyx)
 
 
 def resolve_package_path(
@@ -159,32 +123,21 @@ def _get_ext_modules(project: PyProject, config_settings: Optional[dict] = None)
     # Find all .pyx files in the package directory
     package_paths = project.get_all_package_paths()
     logger.debug(f"Package paths: {package_paths}")
-    # FIXME: Extension class' docstrings state that files are searched from the
-    #  root downwards. Currently we only support <pkg_name>/<pkg_name>/<pyx files here>
-    # kind of file tree
-    # TODO: Add support for src/ structure
-    package_dir = Path(project.package_name).parent
-    logger.debug(
-        f"Looking for .pyx files in package dir: {package_dir.absolute().as_posix()}"
+
+    pyx_paths = _collect_pyx_paths(
+        package_paths,
+        config.sources,
+        config.exclude_dirs
     )
-    pyx_files = []
-    for pkg_path in package_paths:
-        pkg_pyx_files = find_cython_files(
-            pkg_path,
-            sources=config.sources,
-            exclude_dirs=config.exclude_dirs + [str(pkg_path / "build")],
-        )
-        pyx_files.extend(pkg_pyx_files)
-    logger.debug(f"Found .pyx files: {pyx_files}")
 
     # Create Extensions
     ext_modules = []
-    for pyx_file in pyx_files:
+    for pyx_path in pyx_paths:
         # Convert path to proper module path. Absolute paths are forbidden by pip
-        logger.debug(f"\nProcessing: {pyx_file}")
-        pkg_info = resolve_package_path(pyx_file, package_paths)
+        logger.debug(f"\nProcessing: {pyx_path}")
+        pkg_info = resolve_package_path(pyx_path, package_paths)
         if pkg_info is None:
-            logger.warning(f"Could not determine package for {pyx_file}")
+            logger.warning(f"Could not determine package for {pyx_path}")
 
         pkg_name, rel_path = pkg_info
         logger.debug(f"Relative path: {rel_path}")
@@ -203,7 +156,7 @@ def _get_ext_modules(project: PyProject, config_settings: Optional[dict] = None)
         logger.debug(f"Linking libraries: {config.libraries}")
         ext = Extension(
             module_path,
-            [str(pyx_file)],
+            [str(pyx_path)],
             include_dirs=include_dirs,
             language=config.language,
             library_dirs=library_dirs,
@@ -449,3 +402,75 @@ def build_sdist(sdist_directory, config_settings=None):
     from setuptools.build_meta import build_sdist as _build_sdist
 
     return _build_sdist(sdist_directory, config_settings)
+
+
+def _pyx_paths_from_sources(sources: Sequence[str], package_paths: Sequence[Path]) -> List[Path]:
+    logger.debug("Using explicit sources: %s", sources)
+    package_paths = set(package_paths)
+    pyx_paths = []
+    discarded_orphans = []
+    discarded_non_pyx = []
+    for pyx_path in map(Path, sources):
+        if pyx_path.parent not in package_paths:
+            discarded_orphans.append(pyx_path)
+        elif pyx_path.suffix not in ".pyx":
+            discarded_non_pyx.append(pyx_path)
+        else:
+            pyx_paths.append(pyx_path)
+
+    if discarded_orphans:
+        warnings.warn("The following sources were orphaned from packages and have been ignored: "
+                        f"{discarded_orphans}")
+    if discarded_non_pyx:
+        warnings.warn("The following sources will not be cythonised as they are not .pyx files: "
+                      f"{discarded_non_pyx}")
+    return pyx_paths
+
+
+def _find_cython_files(package_paths: Sequence[Path]) -> List[Path]:
+    """Find all Cython source files in the package directory."""
+
+    def find(pkg_path: Path):
+        logger.debug("Searching for Cython files in: %s", pkg_path)
+        found_pyx = list(pkg_path.glob("*.pyx"))
+        if found_pyx:
+            logger.debug("  Found: %s", found_pyx)
+        else:
+            logger.debug("  None found")
+        return found_pyx
+
+    logger.debug("=== finding cython files ===")
+    pyx_files = list(chain.from_iterable(
+        find(pkg_path) for pkg_path in package_paths))
+    logger.debug(f"Found .pyx files: {pyx_files}")
+    return pyx_files
+
+def _exclude_extensions(pyx_paths: Sequence[Path], exclude_dirs: Sequence[str]):
+    logger.debug("Using exclude dirs: %s", exclude_dirs)
+    excluded = []
+    included = []
+    for pyx_path in pyx_paths:
+        for exclude_path in map(Path, exclude_dirs):
+            if pyx_path.is_relative_to(exclude_path):
+                excluded.append(pyx_path)
+            else:
+                included.append(pyx_path)
+    if excluded:
+        logger.debug("Excluded: %s", excluded)
+        logger.debug("Kept: %s", included)
+    else:
+        logger.debug("Nothing excluded")
+    return included
+
+def _collect_pyx_paths(
+        package_paths: Sequence[Path],
+        sources: Sequence[str],
+        exclude_dirs: Sequence[str]
+):
+    pyx_paths = (_pyx_paths_from_sources(sources, package_paths)
+                 if sources else
+                 _find_cython_files(package_paths))
+
+    if exclude_dirs:
+        return _exclude_extensions(pyx_paths, exclude_dirs)
+    return pyx_paths
