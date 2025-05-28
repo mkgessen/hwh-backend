@@ -115,15 +115,22 @@ Build settings can be controlled via command line. Note the different syntax
 between `python -m build` (plural --config-settings) and `pip` (singular
 --config-setting). Consistency here is great :heart:
 
+The following options are supported:
+
 ```shell
 # Using python -m build
 python -m build --wheel --no-isolation \
     --config-settings annotate=true \
     --config-settings nthreads=4 \
-    --config-settings force=true
+    --config-settings force=true \
+    --config-settings linetrace=true
 
 # Using pip
-pip install -e . --config-setting annotate=true
+pip install -e . \
+    --config-setting annotate=true \
+    --config-setting nthreads=4 \
+    --config-setting force=true \
+    --config-setting linetrace=true
 ```
 
 ## Logging
