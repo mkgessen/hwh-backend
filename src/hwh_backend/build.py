@@ -323,7 +323,7 @@ def _build_extension(
 
     dist_kwargs = {
         "name": name,
-        "version": str(project.package_version),
+        "version": project.package_version,
         "ext_modules": _get_ext_modules(project, config_settings=config_settings),
         "packages": project.packages,
         "package_data": {pkg: ["*.pxd", "*.so"] for pkg in project.packages},
