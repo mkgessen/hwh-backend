@@ -122,7 +122,7 @@ version = "0.1.0"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-exclude = ["mypackage*tests", "mypackage*experimental"] 
+exclude = ["mypackage*tests", "mypackage*experimental"]
 """)
 
     project = PyProject(project_dir)

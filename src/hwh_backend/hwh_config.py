@@ -113,6 +113,7 @@ class CythonConfig:
     exclude_dirs: list[str] = field(default_factory=list)
     include_dirs: list[str] = field(default_factory=list)
     library_dirs: list[str] = field(default_factory=list)
+    extra_compile_args: list[str] = field(default_factory=list)
     extra_link_args: list[str] = field(default_factory=list)
     libraries: list[str] = field(default_factory=list)
     runtime_library_dirs: list[str] = field(default_factory=list)
@@ -160,6 +161,7 @@ class CythonConfig:
             include_dirs=include_dirs,
             library_dirs=library_dirs,
             libraries=modules.get("libraries", []),
+            extra_compile_args=modules.get("extra_compile_args", []),
             extra_link_args=modules.get("extra_link_args", []),
             runtime_library_dirs=runtime_library_dirs,
             site_packages=cython_config.get("site_packages") or SitePackages.PURELIB,

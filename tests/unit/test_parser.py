@@ -114,7 +114,7 @@ exclude = ["mypackage.subpkg2*"]
     assert "mypackage.subpkg2" not in discovered
 
 
-def test_package_discovery_default(package_test_dir, tmp_path):
+def test_package_discovery_default_src_layout(package_test_dir, tmp_path):
     """Test default package discovery behavior with no configuration."""
     backend_dir = Path(__file__).parent.parent.parent.absolute()
 
@@ -133,7 +133,41 @@ version = "0.1.0"
 """)
 
     project = PyProject(package_test_dir)
-    assert project.packages == ["mypackage"]
+    assert project.packages == []
+
+
+def test_package_discovery_default_flat_layout(tmp_path):
+    """Test default package discovery behavior with no configuration."""
+    backend_dir = Path(__file__).parent.parent.parent.absolute()
+
+    project_dir = tmp_path / "test_project"
+    project_dir.mkdir()
+
+    # Create test package structure
+    package_tree = {
+        "otherpackage": {
+            "subpkg1": ["module1.py", "cython1.pyx"],
+            "subpkg2": ["module2.py", "cython2.pyx"],
+        }
+    }
+    create_package_structure(project_dir, package_tree)
+
+    with open(project_dir / "pyproject.toml", "w") as f:
+        f.write(f"""
+[build-system]
+requires = [
+    "hwh-backend @ file://{backend_dir}",
+    "Cython<3.0.0"
+]
+build-backend = "hwh_backend.build"
+
+[project]
+name = "mypackage"
+version = "0.1.0"
+""")
+
+    project = PyProject(project_dir)
+    assert sorted(project.packages) == sorted(["otherpackage", "otherpackage.subpkg1", "otherpackage.subpkg2"])
 
 
 def test_package_discovery_different_names(package_test_dir):

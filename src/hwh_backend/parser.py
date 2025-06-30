@@ -1,6 +1,11 @@
+import dataclasses
 import tomllib
+import warnings
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
+from functools import cached_property
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypeAlias
 
 from packaging.requirements import Requirement
 from packaging.version import Version
@@ -8,6 +13,23 @@ from pyproject_metadata import StandardMetadata
 from setuptools import find_packages
 
 from .hwh_config import HwhConfig
+
+
+@dataclasses.dataclass(frozen=True)
+class PackageList:
+    packages: list[str]
+
+
+@dataclasses.dataclass(frozen=True)
+class FindConfig:
+    cfg: dict
+
+
+class AutoDiscover:
+    pass
+
+
+SetuptoolsPackageConfig: TypeAlias = FindConfig | PackageList | AutoDiscover
 
 
 class PyProject:
@@ -19,6 +41,8 @@ class PyProject:
                 f"Couldn't locate pyproject.toml from {str(self.project_dir)}"
             )
         self._data: Optional[Dict[str, Any]] = None
+        # This is set in _discover_packages, called by the packages property
+        self._package_where: Optional[Mapping[str, str]] = None
 
     @property
     def toml(self):
@@ -38,22 +62,36 @@ class PyProject:
         return StandardMetadata.from_pyproject(self.toml)
 
     @property
-    def dependencies(self) -> set[Requirement]:
-        metadata = self.metadata
+    def runtime_dependencies(self) -> Sequence[Requirement]:
+        """Runtime dependencies of the package."""
+        install_requires = self.setuptools_config.get("install_requires")
 
-        all_deps = set(metadata.dependencies)
+        dependencies = self.toml["project"].get("dependencies")
 
-        # Add build-system requires if present
-        build_deps = self.toml.get("build-system", {}).get("requires", [])
-        for dep in build_deps:
-            try:
-                req = Requirement(dep)
-                if req not in all_deps:
-                    all_deps.add(req)
-            except ValueError:
-                continue
+        if install_requires is not None:
+            if dependencies is None:
+                warnings.warn(
+                    "Should rename setuptools.install_requires with project.dependencies"
+                )
+                return list(map(Requirement, install_requires))
 
-        return all_deps
+            warnings.warn(
+                "Found both project.dependencies and setuptools.install_requires."
+                "Using project.dependencies"
+            )
+
+        return list(map(Requirement, dependencies)) if dependencies else []
+
+    @property
+    def build_requires(self) -> Sequence[Requirement]:
+        """Build-time dependencies of the package."""
+        build_requires = self.toml.get("build-system", {}).get("requires", [])
+        return list(map(Requirement, build_requires))
+
+    @property
+    def all_dependencies(self) -> Sequence[Requirement]:
+        """Run- and build-time dependencies of the package."""
+        return self.build_requires + self.runtime_dependencies
 
     @property
     def package_name(self) -> str:
@@ -73,6 +111,29 @@ class PyProject:
     def setuptools_config(self) -> dict:
         """Get setuptools configuration from pyproject.toml."""
         return self.toml.get("tool", {}).get("setuptools", {})
+
+    @cached_property
+    def setuptools_package_config(self) -> SetuptoolsPackageConfig:
+        cfg = self.setuptools_config
+        try:
+            packages = cfg.pop("packages")
+        except KeyError:
+            return AutoDiscover()
+
+        if isinstance(packages, list):
+            return PackageList(packages)
+
+        try:
+            find_cfg = packages["find"]
+        except KeyError:
+            raise TypeError(
+                "setuptools.packages must be list or find configuration. "
+                "See https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html#setuptools-specific-configuration"
+            )
+
+        if not isinstance(find_cfg, dict):
+            raise TypeError("setuptools.packages.find must be table.")
+        return FindConfig(find_cfg)
 
     @property
     def entrypoints(self) -> dict[str, list[str]]:
@@ -95,6 +156,10 @@ class PyProject:
         return self.setuptools_config.get("package-dir", {})
 
     @property
+    def discovered_package_dir(self) -> dict:
+        return {pkg: self.get_package_path(pkg) for pkg in self.packages}
+
+    @cached_property
     def packages(self) -> list[str]:
         """Get list of packages to include."""
         return self._discover_packages()
@@ -103,60 +168,44 @@ class PyProject:
         """Discover packages using setuptools.packages.find configuration."""
         setuptools_config = self.setuptools_config
 
-        # Check for packages.find
-        packages_find = setuptools_config.get("packages", {}).get("find", {})
-        if packages_find:
-            # Get base directory for package search
-            where = packages_find.get("where", ["."])
-            if isinstance(where, str):
-                where = [where]
+        def rooted_find_packages(where=".", **kargs):
+            return find_packages(**kargs, where=self.project_dir / where)
 
-            # Get include/exclude patterns. Default to include all.
-            include = packages_find.get("include", ["*"])
-            exclude = packages_find.get("exclude", [])
+        # May overwrite this later
+        self._package_where = defaultdict(lambda: ".")
 
-            # Convert paths relative to project root
-            search_dirs = [self.project_dir / w for w in where]
+        match self.setuptools_package_config:
+            case PackageList(packages=pkgs):
+                return pkgs
+            case AutoDiscover():
+                return rooted_find_packages()
+            case FindConfig(cfg=cfg):
+                try:
+                    where_cfg = cfg.pop("where")
+                except KeyError:
+                    return rooted_find_packages(**cfg)
 
-            found_packages = []
-            for search_dir in search_dirs:
-                found = find_packages(
-                    where=str(search_dir), include=include, exclude=exclude
-                )
-                found_packages.extend(found)
+                if isinstance(where_cfg, str):
+                    where_cfg = [where_cfg]
 
-            if found_packages:
-                return found_packages
+                self._package_where = {
+                    package: where
+                    for where in where_cfg
+                    for package in rooted_find_packages(where=where, **cfg)
+                }
+                return list(self._package_where)
 
-        # Fallback to direct package list if specified
-        packages = setuptools_config.get("packages", None)
-        if isinstance(packages, list):
-            return packages
-
-        # Default to package name as last resort
-        return [self.package_name]
+            case _:
+                raise TypeError("Bug in setuptools_package_config")
 
     def get_package_path(self, package: str) -> Path:
         """Convert a package name to its directory path."""
-        base = self.project_dir
-
-        # Check for config, where setuptools.packages.find section defines "where"
-        packages_find = self.setuptools_config.get("packages", {}).get("find", {})
-        if where_paths := packages_find.get("where", []):
-            if isinstance(where_paths, str):
-                where_paths = [where_paths]
-            # Use the first where path for now
-            # TODO: figure out the cases where there are multiple "where"s.
-            # havent' seen one yet?
-            base = base / where_paths[0]
-
-        return base / package.replace(".", "/")
+        # HACK: Make sure we compute the list of packages if needed
+        self.packages
+        return (
+            self.project_dir / self._package_where[package] / package.replace(".", "/")
+        )
 
     def get_all_package_paths(self) -> list[Path]:
         """Get paths for all configured packages."""
-        # For src layout, we only want the root package path
-        # added to stop duplicates
-        if len(self.packages) > 0:
-            root_pkg = self.packages[0].split(".")[0]
-            return [self.get_package_path(root_pkg)]
-        return []
+        return [self.get_package_path(pkg) for pkg in self.packages]

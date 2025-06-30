@@ -70,6 +70,7 @@ Extension module configuration:
 - `include_dirs`: Header search paths
 - `library_dirs`: Library search paths
 - `libraries`: Libraries to link against
+- `extra_compile_args`: Additional compilation arguments
 - `extra_link_args`: Additional linker arguments
 - `runtime_library_dirs`: Runtime library search paths
 
@@ -114,15 +115,22 @@ Build settings can be controlled via command line. Note the different syntax
 between `python -m build` (plural --config-settings) and `pip` (singular
 --config-setting). Consistency here is great :heart:
 
+The following options are supported:
+
 ```shell
 # Using python -m build
 python -m build --wheel --no-isolation \
     --config-settings annotate=true \
     --config-settings nthreads=4 \
-    --config-settings force=true
+    --config-settings force=true \
+    --config-settings linetrace=true
 
 # Using pip
-pip install -e . --config-setting annotate=true
+pip install -e . \
+    --config-setting annotate=true \
+    --config-setting nthreads=4 \
+    --config-setting force=true \
+    --config-setting linetrace=true
 ```
 
 ## Logging
@@ -160,7 +168,7 @@ exclude_dirs = ["tests", "build"]
 include_dirs = ["include"]
 library_dirs = ["/usr/local/lib"]
 libraries = ["mylib"]
-extra_link_args = ["-O3"]
+extra_compile_args = ["-O3"]
 runtime_library_dirs = ["/usr/local/lib"]
 site_packages = "purelib"
 
@@ -169,7 +177,3 @@ boundscheck = false
 wraparound = false
 cdivision = true
 ```
-
-## TODO
-
-- [ ] Allow passing of macros `-D` and extra flags like `-O2`

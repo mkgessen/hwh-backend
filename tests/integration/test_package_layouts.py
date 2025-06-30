@@ -21,24 +21,22 @@ def test_src_layout_installation(tmp_path, pip_arguments):
 
     # Create directory structure
     package_tree = {
-        "src": {
-            "mypackage": {
-                "core": {
-                    "base.pyx": """
+        "mypackage": {
+            "core": {
+                "base.pyx": """
 def get_value():
     return 42
 """,
-                },
-                "utils": {
-                    "helpers.py": """
+            },
+            "utils": {
+                "helpers.py": """
 def helper_func():
     return "helper"
 """,
-                },
             }
         }
     }
-    create_package_structure(package_dir, package_tree)
+    create_package_structure(package_dir / "src", package_tree)
 
     # Create pyproject.toml with only modern configuration
     with open(package_dir / "pyproject.toml", "w") as f:
