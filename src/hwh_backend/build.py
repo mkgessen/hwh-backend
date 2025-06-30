@@ -304,7 +304,7 @@ def _parse_build_settings(config_settings: dict | None = None) -> dict[str, bool
 
 def _build_extension(
     inplace: bool = False, config_settings={}
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any]:
     """Build the extension modules with better editable install handling.
 
     returns: dict of kwargs for Distribution object
@@ -312,11 +312,6 @@ def _build_extension(
 
     logger.debug("=== Starting _build_extension ===")
     logger.debug(f"\n with config {config_settings}")
-    global _EXTENSIONS_BUILT
-
-    if _EXTENSIONS_BUILT:
-        logger.debug("Extensions already built, skipping")
-        return
 
     project = PyProject(Path())
     name = project.package_name
@@ -354,11 +349,17 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     project = PyProject(Path())
 
     # Build extensions first, this now handles all the Distribution setup
-    dist_kwargs = _build_extension(
-        _is_editable_install(), config_settings=config_settings
-    ) | {"entry_points": project.entrypoints,
-         "install_requires": [str(d) for d in project.runtime_dependencies],
-         "extras_require": project.toml.get("project", {}).get("optional-dependencies", None)}
+    dist_kwargs = {
+        "entry_points": project.entrypoints,
+        "install_requires": [str(d) for d in project.runtime_dependencies],
+        "extras_require": project.toml.get("project", {}).get("optional-dependencies", None)
+    }
+    if not _EXTENSIONS_BUILT:
+        dist_kwargs |= _build_extension(
+            _is_editable_install(), config_settings=config_settings
+        )
+    else:
+        logger.debug("Extensions already built, skipping")
 
     from wheel.bdist_wheel import bdist_wheel as wheel_command
 
@@ -403,7 +404,8 @@ def build_editable(wheel_directory, config_settings=None, metadata_directory=Non
 
     # Editable install=inplace
     logger.debug(f"passing config {config_settings}")
-    _build_extension(inplace=True, config_settings=config_settings)
+    if not _EXTENSIONS_BUILT:
+        _build_extension(inplace=True, config_settings=config_settings)
 
     logger.debug("Calling setuptools build_editable")
     result = _build_editable(wheel_directory, config_settings, metadata_directory)
