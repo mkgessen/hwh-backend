@@ -101,7 +101,9 @@ class PyProject:
     @property
     def package_version(self) -> Optional[Version]:
         """Get the package version from pyproject.toml"""
-        return self.metadata.version
+        # NOTE: Do not use StandardMetadata as it parses a missing version
+        #       as "0.0.0" (???)
+        return self.toml["project"].get("version")
 
     def get_hwh_config(self) -> HwhConfig:
         # TODO: switch to property
