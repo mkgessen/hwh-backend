@@ -138,6 +138,21 @@ class PyProject:
         return FindConfig(find_cfg)
 
     @property
+    def entrypoints(self) -> dict[str, list[str]]:
+        # TODO: Handle dynamic entrypoints
+        def dict_to_list(d):
+            return [f"{k}={v}" for k, v in d.items()]
+
+        entrypoints = self.metadata.entrypoints
+
+        if self.metadata.scripts:
+            entrypoints["console_scripts"] = self.metadata.scripts
+        if self.metadata.gui_scripts:
+            entrypoints["gui_scripts"] = self.metadata.gui_scripts
+
+        return {name: dict_to_list(group) for name, group in entrypoints.items() if group}
+
+    @property
     def package_dir(self) -> dict:
         """Get package directory mapping from setuptools config."""
         return self.setuptools_config.get("package-dir", {})
