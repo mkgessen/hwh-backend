@@ -11,7 +11,7 @@ Ideally similar functionality would be provided an actual setuptools backend.
 
 - Python 3.11+
 - Cython 0.29 or 3.1+
-- NumPy <2 with Cython 0.29 and 2.0+ for Cython 3(optional, for numpy integration)
+- NumPy <2 with Cython 0.29 and 2.0+ for Cython 3 (optional, for numpy integration)
 - Linux
 
 ## Features
