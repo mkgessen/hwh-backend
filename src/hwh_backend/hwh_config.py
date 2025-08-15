@@ -30,17 +30,11 @@ class CythonCompilerWarningDirectives:
 
 @dataclass
 class CythonCompilerDirectives:
-    # only language level "3" is supported, so hardcoding it
-    _language_level: str = field(init=False, default="3", repr=False)
-
-    @property
-    def language_level(self) -> str:
-        """Language level is fixed at '3' for Python 3 compatibility."""
-        return self._language_level
-
-    # see https://cython.readthedocs.io/en/0.29.x/src/userguide/source_files_and_compilation.html#compiler-directives
-    # Defaults are documentation's defauls
-    binding: bool = False
+    # see https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#compiler-directives
+    # Use 3str for Cython 3+, still defaults to 3.
+    # TODO: Change default in future versions
+    language_level: str = "3str"
+    binding: bool = True  # Changed from False (new default in Cython 3+)
     boundscheck: bool = True
     wraparound: bool = True
     initializedcheck: bool = False
@@ -66,20 +60,14 @@ class CythonCompilerDirectives:
     def as_dict(self) -> dict[str, str | bool]:
         """Convert directives to dictionary for cythonize()."""
         return {
-            "language_level": self.language_level,  # Always include this
-            **{
-                key: value
-                for key, value in self.__dict__.items()
-                if not key.startswith("_") and value is not None
-            },
+            key: value
+            for key, value in self.__dict__.items()
+            if not key.startswith("_") and value is not None
         }
 
     def __post_init__(self):
         """Validate types and values after initialization."""
         for field_name, field_value in self.__dict__.items():
-            if field_name == "_language_level":
-                continue  # ignore language_level, since it should be always 3
-
             field_type = self.__annotations__[field_name]
 
             # Type validation
@@ -121,6 +109,18 @@ class CythonConfig:
 
     # include_dirs += numpy.get_include()
     use_numpy_include: bool = False
+
+    # Allow passing NPY_NO_DEPRECATED_API to avoid NumPy deprecation warnings
+    # Set to None (default) to still see warnings, or specify API version like "NPY_1_7_API_VERSION" to supress.
+    # TODO: Rename and make something more elegant
+    numpy_api_version: str | None = None
+
+    # Enable legacy exception handling behavior for Cython 3+
+    # This is to stop spamming with noexcept warnings
+    # Set to True to restore Cython 0.29 exception handling (default: true)
+    # TODO: Set default to true in future versions
+    # TODO: check that this doesn't upset when building with 0.29
+    legacy_implicit_noexcept: bool = True
 
     def __post_init__(self):
         if isinstance(self.compiler_directives, dict):
@@ -166,6 +166,10 @@ class CythonConfig:
             runtime_library_dirs=runtime_library_dirs,
             site_packages=cython_config.get("site_packages") or SitePackages.PURELIB,
             use_numpy_include=cython_config.get("use_numpy_include", False),
+            numpy_api_version=cython_config.get("numpy_api_version"),
+            legacy_implicit_noexcept=cython_config.get(
+                "legacy_implicit_noexcept", False
+            ),
         )
 
 
