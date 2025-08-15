@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hwh-backend"
 dynamic = ["version"]
-description = "Setuptools based backend supporting Cython extensions"
+description = "Setuptools based backend supporting Cython 3+ extensions"
 authors = [
     { name = "Mathias von Essen", email = "3090690+mkgessen@users.noreply.github.com" },
 ]
@@ -26,7 +26,8 @@ classifiers = [
 dependencies = [
     "setuptools>=68.0",
     "wheel>=0.40.0",
-    "Cython<3.0.0",
+    "Cython>=3.1.0",
+    "numpy>=2.0.0",
     "pyproject-metadata>=0.7.0",
 ]
 
