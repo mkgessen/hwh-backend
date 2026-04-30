@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel>=0.40.0", "setuptools-scm>=8.0.0"]
+requires = ["setuptools>=69.0", "wheel>=0.40.0", "setuptools-scm>=8.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -24,11 +24,11 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
-    "setuptools>=68.0",
+    "setuptools>=69.0",
     "wheel>=0.40.0",
     "Cython>=3.1.0",
     "numpy>=2.0.0",
-    "pyproject-metadata>=0.7.0",
+    "pyproject-metadata>=0.8.0",
 ]
 
 [project.optional-dependencies]

@@ -344,6 +344,18 @@ def _build_extension(inplace: bool = False, config_settings={}) -> dict[str, Any
     return dist_kwargs
 
 
+try:
+    from setuptools.command.bdist_wheel import bdist_wheel as _bdist_wheel
+except ImportError:
+    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+
+
+class BdistWheelCommand(_bdist_wheel):
+    def finalize_options(self):
+        super().finalize_options()
+        self.root_is_pure = False
+
+
 def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     """Build wheel with explicit editable install handling."""
 
@@ -367,18 +379,6 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     else:
         logger.debug("Extensions already built, skipping")
 
-    from wheel.bdist_wheel import bdist_wheel as wheel_command
-
-    class BdistWheelCommand(wheel_command):
-        def finalize_options(self):
-            super().finalize_options()
-            self.root_is_pure = False
-            self.user_options = config_settings
-
-        def run(self):
-            logger.debug("Running custom bdist_wheel command")
-            super().run()
-
     # Create distribution using same config from _build_extension
     dist = Distribution(dist_kwargs)
     dist.cmdclass = {"build_ext": EditableBuildExt}
@@ -386,7 +386,10 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
 
     cmd = BdistWheelCommand(dist)
     cmd.dist_dir = wheel_directory
-    cmd.distribution.script_name = "fubar"
+    # script_name must be a valid path string; Distribution() leaves it None
+    # when constructed programmatically, causing os.path.abspath() to fail
+    # inside distutils build_py.
+    cmd.distribution.script_name = "setup.py"
     cmd.ensure_finalized()
     logger.debug("Starting wheel build")
     cmd.run()

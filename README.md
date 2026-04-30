@@ -3,7 +3,7 @@
 [![Tests Passing](https://github.com/mkgessen/hwh-backend/actions/workflows/test-only.yml/badge.svg)](https://github.com/mkgessen/hwh-backend/actions/workflows/test-only.yml)
 
 Provides [PEP-517](https://peps.python.org/pep-0517/) build hooks for building
-Cython extensions with setuptools. Supports Cython 3.1+ and NumPy 2+.
+Cython extensions with setuptools. Supports Cython 0.29 and 3.1+.
 
 Ideally similar functionality would be provided an actual setuptools backend.
 

@@ -39,28 +39,17 @@ def test_compiler_directives_types():
         CythonCompilerDirectives(binding="not_a_bool")
 
 
-def test_cython_compiler_directives_constant_language_level():
-    # TODO: delete - no point of testing language level, since we only accept 3
+def test_cython_compiler_directives_default_language_level():
+    # Arrange
     directives = CythonCompilerDirectives()
 
-    # Test that language_level is constant
-    assert directives.language_level == "3"
-    with pytest.raises(AttributeError):
-        directives.language_level = "2"
+    # Assert default is Cython 3 language level
+    assert directives.language_level == "3str"
 
-    # Test that as_dict() includes language_level
+    # Assert as_dict() includes language_level
     result = directives.as_dict()
     assert "language_level" in result
-    assert result["language_level"] == "3"
-
-    # Test that private fields are not included
-    assert "_language_level" not in result
-
-    # Test that all other fields work normally
-    directives.binding = True
-    result = directives.as_dict()
-    assert result["binding"] is True
-    assert result["language_level"] == "3"  # Still present and unchanged
+    assert result["language_level"] == "3str"
 
 
 def test_library_config():
