@@ -9,7 +9,7 @@ Cython extensions with setuptools. Supports Cython 0.29 and 3.1+.
 the Python version you're running:
 
 - Cython>=3.1 is supported for Python 3.12/3.13
-- Cython>=0.29 is supported for Python 3.11 (see branch [cython-0.29](https://github.com/mkgessen/hwh-backend/tree/cython-0.29))
+- Cython==0.29 is supported for Python 3.11 (see branch [cython-0.29](https://github.com/mkgessen/hwh-backend/tree/cython-0.29))
 
 
 ## Requirements
