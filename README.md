@@ -5,11 +5,16 @@
 Provides [PEP-517](https://peps.python.org/pep-0517/) build hooks for building
 Cython extensions with setuptools. Supports Cython 0.29 and 3.1+.
 
-Ideally similar functionality would be provided an actual setuptools backend.
+:warning: `pip intall hwh-backend` will support different Cython versions depending on 
+the Python version you're running:
+
+- Cython>=3.1 is supported for Python 3.12/3.13
+- Cython>=0.29 is supported for Python 3.11 (see branch [cython-0.29](https://github.com/mkgessen/hwh-backend/tree/cython-0.29))
+
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.11 - 3.13
 - Cython 0.29 or 3.1+
 - NumPy <2 with Cython 0.29 and 2.0+ for Cython 3 (optional, for numpy integration)
 - Linux
