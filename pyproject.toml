@@ -10,6 +10,7 @@ authors = [
     { name = "Mathias von Essen", email = "3090690+mkgessen@users.noreply.github.com" },
 ]
 readme = "README.md"
+# WARNING: Doesn't run on 3.14
 requires-python = ">=3.12"
 license = "MIT"
 keywords = ["cython", "build", "backend", "pep517"]
@@ -19,7 +20,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
     "Programming Language :: Cython",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Libraries :: Python Modules",
