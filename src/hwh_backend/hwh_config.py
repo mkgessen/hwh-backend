@@ -120,7 +120,7 @@ class CythonConfig:
     # Set to True to restore Cython 0.29 exception handling (default: true)
     # TODO: Set default to true in future versions
     # TODO: check that this doesn't upset when building with 0.29
-    legacy_implicit_noexcept: bool = True
+    legacy_implicit_noexcept: bool = False
 
     def __post_init__(self):
         if isinstance(self.compiler_directives, dict):

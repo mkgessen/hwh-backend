@@ -67,7 +67,9 @@ Core Cython build configuration:
 - `force`: Force rebuild of extensions (default: false)
 - `use_numpy_include`: Include numpy headers in compilation (default: false)
 - `numpy_api_version`: Define NPY_NO_DEPRECATED_API macro to suppress NumPy deprecation warnings (default: none). Set to "NPY_1_7_API_VERSION" to eliminate warnings
-- `legacy_implicit_noexcept`: Noexcept flag to stop Cython 3 spamming in case of explicit noexcept statements (default: true) and I will change the name :)
+- `legacy_implicit_noexcept`: Controls exception handling for `cdef` functions without an explicit exception spec (default: false)
+  - `false`: Cython 3 default — functions check for exceptions after every call
+  - `true`: Cython 0.29 behavior — functions are implicitly `noexcept`, no exception checking.
 
 ### `[tool.hwh.cython.modules]`
 
