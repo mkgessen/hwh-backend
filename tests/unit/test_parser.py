@@ -84,7 +84,7 @@ def test_package_discovery_explicit(package_test_dir, tmp_path):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
@@ -113,7 +113,7 @@ def test_package_discovery_find(package_test_dir, tmp_path):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
@@ -145,7 +145,7 @@ def test_package_discovery_default_src_layout(package_test_dir, tmp_path):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
@@ -179,7 +179,7 @@ def test_package_discovery_default_flat_layout(tmp_path):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
@@ -211,7 +211,7 @@ def test_package_discovery_different_names(package_test_dir):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 

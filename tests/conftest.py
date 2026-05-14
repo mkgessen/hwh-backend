@@ -48,7 +48,7 @@ def sample_pyproject():
 [build-system]
 requires = [
     "hwh-backend",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
