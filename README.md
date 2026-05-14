@@ -82,12 +82,13 @@ Extension module configuration:
 - `extra_link_args`: Additional linker arguments
 - `runtime_library_dirs`: Runtime library search paths
 
-Site-packages configuration via `site_packages`:
+### `[tool.hwh.cython]` — site-packages
 
-- `"purelib"`: Use sysconfig.get_path("purelib")
-- `"user"`: Use site.getusersitepackages()
-- `"site"`: Use site.getsitepackages()
-- `"none"`: No automatic site-packages paths
+- `site_packages`: Controls which site-packages paths are added to include/library dirs:
+  - `"purelib"`: Use sysconfig.get_path("purelib") (default)
+  - `"user"`: Use site.getusersitepackages()
+  - `"site"`: Use site.getsitepackages()
+  - `"none"`: No automatic site-packages paths
 
 ### `[tool.hwh.cython.compiler_directives]`
 
@@ -174,6 +175,7 @@ force = false
 use_numpy_include = true
 numpy_api_version = "NPY_1_7_API_VERSION"
 legacy_implicit_noexcept = false
+site_packages = "purelib"
 
 [tool.hwh.cython.modules]
 sources = ["src/mylib/*.pyx"]
@@ -183,7 +185,6 @@ library_dirs = ["/usr/local/lib"]
 libraries = ["mylib"]
 extra_compile_args = ["-O3"]
 runtime_library_dirs = ["/usr/local/lib"]
-site_packages = "purelib"
 
 [tool.hwh.cython.compiler_directives]
 boundscheck = false

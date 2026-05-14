@@ -10,7 +10,7 @@ class Language(StrEnum):
 
 
 class SitePackages(StrEnum):
-    PURELIB = "pure"  # use sysconfig.get_path('purelib')
+    PURELIB = "purelib"  # use sysconfig.get_path('purelib')
     USER = "user"  # use site.getusersitepackages()
     SITE = "site"  # use site.getsitepackages()
     NONE = "none"  # don't add sitepackages at all

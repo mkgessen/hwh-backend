@@ -24,6 +24,36 @@ def test_site_packages_config():
     assert config.site_packages == SitePackages.PURELIB
 
 
+def test_site_packages_purelib_string_value():
+    """SitePackages.PURELIB should have string value 'purelib' to match docs and sysconfig key."""
+    assert SitePackages.PURELIB == "purelib"
+
+
+def test_site_packages_from_pyproject_modules_section(tmp_path):
+    """site_packages should be read from [tool.hwh.cython.modules], not [tool.hwh.cython]."""
+    import tomli_w
+    from hwh_backend.parser import PyProject
+
+    test_config = {
+        "project": {"name": "test-project", "version": "0.1.0"},
+        "tool": {
+            "hwh": {
+                "cython": {
+                    "site_packages": "site",
+                }
+            }
+        },
+    }
+
+    pyproject_path = tmp_path / "pyproject.toml"
+    with open(pyproject_path, "wb") as f:
+        tomli_w.dump(test_config, f)
+
+    project = PyProject(tmp_path)
+    config = project.get_hwh_config().cython
+    assert config.site_packages == SitePackages.SITE
+
+
 def test_invalid_language():
     with pytest.raises(ValueError):
         CythonConfig(language="invalid")
