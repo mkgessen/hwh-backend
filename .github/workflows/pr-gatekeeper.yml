@@ -12,27 +12,26 @@ on:
     branches: [ master ]
 
 jobs:
-  validate:
+  test:
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
       with:
-        python-version: "3.11"
-    
+        python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .[test]
-    
+      run: uv sync --extra test
+
     - name: Run tests
-      run: |
-        python -m pytest
-        
+      run: uv run pytest
+
     - name: Verify build
-      run: |
-        pip install build
-        python -m build
+      run: uv run python -m build
