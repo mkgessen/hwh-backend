@@ -98,7 +98,6 @@ Cython compiler directives configuration:
 
 ```toml
 [tool.hwh.cython.compiler_directives]
-language_level = "3str"    # Python language level ("2", "3", "3str" for Cython 3+)
 binding = false            # Generate Python wrapper functions
 boundscheck = false        # Array bounds checking
 wraparound = false        # Negative indexing

@@ -31,9 +31,6 @@ class CythonCompilerWarningDirectives:
 @dataclass
 class CythonCompilerDirectives:
     # see https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#compiler-directives
-    # Use 3str for Cython 3+, still defaults to 3.
-    # TODO: Change default in future versions
-    language_level: str = "3str"
     binding: bool = True  # Changed from False (new default in Cython 3+)
     boundscheck: bool = True
     wraparound: bool = True
@@ -59,11 +56,13 @@ class CythonCompilerDirectives:
 
     def as_dict(self) -> dict[str, str | bool]:
         """Convert directives to dictionary for cythonize()."""
-        return {
+        directives = {
             key: value
             for key, value in self.__dict__.items()
             if not key.startswith("_") and value is not None
         }
+        directives["language_level"] = "3str"
+        return directives
 
     def __post_init__(self):
         """Validate types and values after initialization."""
