@@ -3,14 +3,20 @@
 [![Tests Passing](https://github.com/mkgessen/hwh-backend/actions/workflows/test-only.yml/badge.svg)](https://github.com/mkgessen/hwh-backend/actions/workflows/test-only.yml)
 
 Provides [PEP-517](https://peps.python.org/pep-0517/) build hooks for building
-Cython extensions with setuptools. Currently supports Cython 0.29.
+Cython extensions with setuptools. Supports Cython 0.29 and 3.1+.
 
-Ideally similar functionality would be provided an actual setuptools backend.
+:warning: `pip intall hwh-backend` will support different Cython versions depending on 
+the Python version you're running:
+
+- Cython>=3.1 is supported for Python 3.12/3.13
+- Cython==0.29 is supported for Python 3.11 (see branch [cython-0.29](https://github.com/mkgessen/hwh-backend/tree/cython-0.29))
+
 
 ## Requirements
 
-- Python 3.11
-- Cython 0.29.xx
+- Python 3.11 - 3.13
+- Cython 0.29 or 3.1+
+- NumPy <2 with Cython 0.29 and 2.0+ for Cython 3 (optional, for numpy integration)
 - Linux
 
 ## Features
@@ -60,6 +66,10 @@ Core Cython build configuration:
 - `nthreads`: Number of parallel compilation threads (default: CPU count)
 - `force`: Force rebuild of extensions (default: false)
 - `use_numpy_include`: Include numpy headers in compilation (default: false)
+- `numpy_api_version`: Define NPY_NO_DEPRECATED_API macro to suppress NumPy deprecation warnings (default: none). Set to "NPY_1_7_API_VERSION" to eliminate warnings
+- `legacy_implicit_noexcept`: Controls exception handling for `cdef` functions without an explicit exception spec (default: false)
+  - `false`: Cython 3 default — functions check for exceptions after every call
+  - `true`: Cython 0.29 behavior — functions are implicitly `noexcept`, no exception checking.
 
 ### `[tool.hwh.cython.modules]`
 
@@ -74,12 +84,13 @@ Extension module configuration:
 - `extra_link_args`: Additional linker arguments
 - `runtime_library_dirs`: Runtime library search paths
 
-Site-packages configuration via `site_packages`:
+### `[tool.hwh.cython]` — site-packages
 
-- `"purelib"`: Use sysconfig.get_path("purelib")
-- `"user"`: Use site.getusersitepackages()
-- `"site"`: Use site.getsitepackages()
-- `"none"`: No automatic site-packages paths
+- `site_packages`: Controls which site-packages paths are added to include/library dirs:
+  - `"purelib"`: Use sysconfig.get_path("purelib") (default)
+  - `"user"`: Use site.getusersitepackages()
+  - `"site"`: Use site.getsitepackages()
+  - `"none"`: No automatic site-packages paths
 
 ### `[tool.hwh.cython.compiler_directives]`
 
@@ -103,7 +114,7 @@ type_version_tag = true  # Enable CPython's type attribute cache
 ```
 
 For more information, see
-[Cython docs](https://cython.readthedocs.io/en/0.29.x/src/userguide/source_files_and_compilation.html)
+[Cython docs](https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html)
 and
 [Setup tools extension docs](https://setuptools.pypa.io/en/latest/userguide/ext_modules.html)
 
@@ -123,14 +134,16 @@ python -m build --wheel --no-isolation \
     --config-settings annotate=true \
     --config-settings nthreads=4 \
     --config-settings force=true \
-    --config-settings linetrace=true
+    --config-settings linetrace=true \
+    --config-settings legacy_implicit_noexcept=true
 
 # Using pip
 pip install -e . \
     --config-setting annotate=true \
     --config-setting nthreads=4 \
     --config-setting force=true \
-    --config-setting linetrace=true
+    --config-setting linetrace=true \
+    --config-setting legacy_implicit_noexcept=true
 ```
 
 ## Logging
@@ -142,13 +155,13 @@ pip install --config-setting verbose=debug  # Options: debub, info, warning
 ### `[tool.hwh.cython.compiler_directives]`
 
 HWH exposes the most of Cython's compiler directives. See
-[compiler directives](https://cython.readthedocs.io/en/0.29.x/src/userguide/source_files_and_compilation.html#compiler-directives)
+[compiler directives](https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#compiler-directives)
 
 ### Example `pyproject.toml`
 
 ```toml pyproject.toml
 [build-system]
-requires = ["hwh-backend", "Cython<3.0.0"]
+requires = ["hwh-backend", "Cython>=3.1.0"]
 build-backend = "hwh_backend.build"
 
 [project]
@@ -161,6 +174,9 @@ annotate = true
 nthreads = 4
 force = false
 use_numpy_include = true
+numpy_api_version = "NPY_1_7_API_VERSION"
+legacy_implicit_noexcept = false
+site_packages = "purelib"
 
 [tool.hwh.cython.modules]
 sources = ["src/mylib/*.pyx"]
@@ -170,7 +186,6 @@ library_dirs = ["/usr/local/lib"]
 libraries = ["mylib"]
 extra_compile_args = ["-O3"]
 runtime_library_dirs = ["/usr/local/lib"]
-site_packages = "purelib"
 
 [tool.hwh.cython.compiler_directives]
 boundscheck = false

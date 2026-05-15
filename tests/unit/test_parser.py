@@ -1,5 +1,6 @@
 import subprocess
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -8,6 +9,27 @@ from hwh_backend.parser import PyProject
 from ..utils.package_utils import create_package_structure, create_test_package
 from ..utils.venv_utils import create_virtual_env, run_in_venv, setup_test_env
 from ..utils.verification_utils import verify_editable_install, verify_installation
+
+
+def test_metadata_should_pass_allow_extra_keys_to_standard_metadata(tmp_path):
+    """StandardMetadata.from_pyproject must be called with allow_extra_keys=True
+    so that pyproject-metadata>=0.8.0 does not raise on unknown [project] keys."""
+    # Arrange
+    (tmp_path / "pyproject.toml").write_text("""
+[project]
+name = "test-pkg"
+version = "0.1.0"
+""")
+    project = PyProject(tmp_path)
+    mock_metadata = MagicMock()
+
+    # Act
+    with patch("hwh_backend.parser.StandardMetadata") as mock_cls:
+        mock_cls.from_pyproject.return_value = mock_metadata
+        _ = project.metadata
+
+    # Assert
+    mock_cls.from_pyproject.assert_called_once_with(project.toml, allow_extra_keys=True)
 
 
 @pytest.fixture
@@ -62,7 +84,7 @@ def test_package_discovery_explicit(package_test_dir, tmp_path):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
@@ -91,7 +113,7 @@ def test_package_discovery_find(package_test_dir, tmp_path):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
@@ -123,7 +145,7 @@ def test_package_discovery_default_src_layout(package_test_dir, tmp_path):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
@@ -157,7 +179,7 @@ def test_package_discovery_default_flat_layout(tmp_path):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
@@ -189,7 +211,7 @@ def test_package_discovery_different_names(package_test_dir):
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 
