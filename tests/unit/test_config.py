@@ -69,16 +69,15 @@ def test_compiler_directives_types():
         CythonCompilerDirectives(binding="not_a_bool")
 
 
-def test_cython_compiler_directives_default_language_level():
-    # Arrange
-    directives = CythonCompilerDirectives()
+def test_language_level_not_user_configurable():
+    """language_level is hardcoded to 3str and should not be settable by the user."""
+    with pytest.raises(TypeError):
+        CythonCompilerDirectives(language_level="2")
 
-    # Assert default is Cython 3 language level
-    assert directives.language_level == "3str"
 
-    # Assert as_dict() includes language_level
-    result = directives.as_dict()
-    assert "language_level" in result
+def test_language_level_always_3str_in_dict():
+    """as_dict() must always include language_level=3str regardless of other directives."""
+    result = CythonCompilerDirectives().as_dict()
     assert result["language_level"] == "3str"
 
 
