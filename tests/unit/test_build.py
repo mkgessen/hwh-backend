@@ -1,11 +1,11 @@
-import pytest
-from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from hwh_backend.build import (
     BdistWheelCommand,
-    _parse_build_settings,
     _collect_pyx_paths,
+    _parse_build_settings,
 )
 
 
@@ -17,7 +17,7 @@ from hwh_backend.build import (
             ["foo"],
             ["test_project"],
             {"test_project/": ["foo.pyx", "a.pyx", "x.pyx"]},
-            1
+            1,
         ),
         (
             # sources
@@ -48,7 +48,7 @@ from hwh_backend.build import (
     ],
 )
 def test_collect_pyx_paths_combinations(
-        tmp_path, sources, exclude_dirs, package_paths, file_structure, expected_count
+    tmp_path, sources, exclude_dirs, package_paths, file_structure, expected_count
 ):
     # Create test structure
     for dir_path, files in file_structure.items():
@@ -57,10 +57,12 @@ def test_collect_pyx_paths_combinations(
         for f in files:
             (full_dir / f).touch()
 
-    package_paths = [tmp_path/pkg for pkg in package_paths]
-    sources = [tmp_path/src for src in sources] if sources else None
-    exclude_dirs = [tmp_path/excl for excl in exclude_dirs] if exclude_dirs else None
-    result = _collect_pyx_paths(package_paths, sources=sources, exclude_dirs=exclude_dirs)
+    package_paths = [tmp_path / pkg for pkg in package_paths]
+    sources = [tmp_path / src for src in sources] if sources else None
+    exclude_dirs = [tmp_path / excl for excl in exclude_dirs] if exclude_dirs else None
+    result = _collect_pyx_paths(
+        package_paths, sources=sources, exclude_dirs=exclude_dirs
+    )
     print(result)
     assert len(result) == expected_count
 
@@ -91,6 +93,7 @@ def test_bdist_wheel_command_should_not_define_run():
 def test_bdist_wheel_command_finalize_options_should_preserve_user_options():
     # Arrange — user_options is a class-level list of option tuples defined by wheel
     from setuptools.dist import Distribution
+
     dist = Distribution({"name": "test-pkg", "version": "0.1.0"})
     cmd = BdistWheelCommand(dist)
     expected_user_options = BdistWheelCommand.user_options

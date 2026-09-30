@@ -10,7 +10,6 @@ authors = [
     { name = "Mathias von Essen", email = "3090690+mkgessen@users.noreply.github.com" },
 ]
 readme = "README.md"
-# WARNING: Doesn't run on 3.14
 requires-python = ">=3.12"
 license = "MIT"
 keywords = ["cython", "build", "backend", "pep517"]
@@ -20,6 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Cython",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -78,6 +78,10 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
 select = [
     "E", # pycodestyle errors
     "W", # pycodestyle warnings
@@ -86,6 +90,19 @@ select = [
     "C", # flake8-comprehensions
     "B", # flake8-bugbear
 ]
-ignore = []
-line-length = 88
-target-version = "py312"
+ignore = [
+    "E501", # line too long
+    "E701", # multiple statements on one line
+    "C901", # too complex
+    "B006", # mutable default argument
+    "B018", # useless expression
+    "B028", # no stacklevel in warnings.warn
+    "B904", # raise without from in except
+    "F401", # unused import (re-exports in fixtures)
+    "F841", # local variable assigned but never used
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+]

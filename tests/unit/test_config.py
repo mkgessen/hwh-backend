@@ -32,6 +32,7 @@ def test_site_packages_purelib_string_value():
 def test_site_packages_from_pyproject_modules_section(tmp_path):
     """site_packages should be read from [tool.hwh.cython.modules], not [tool.hwh.cython]."""
     import tomli_w
+
     from hwh_backend.parser import PyProject
 
     test_config = {
