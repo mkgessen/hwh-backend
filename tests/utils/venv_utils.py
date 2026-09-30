@@ -69,7 +69,7 @@ def setup_test_env(venv_dir: Path, backend_dir: Optional[Path] = None) -> None:
             "install",
             "setuptools",
             "wheel",
-            "Cython<3.0.0",
+            "Cython>=3.1.0",
             "pyproject-metadata",
             "build",
         ],

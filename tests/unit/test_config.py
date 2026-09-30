@@ -24,6 +24,36 @@ def test_site_packages_config():
     assert config.site_packages == SitePackages.PURELIB
 
 
+def test_site_packages_purelib_string_value():
+    """SitePackages.PURELIB should have string value 'purelib' to match docs and sysconfig key."""
+    assert SitePackages.PURELIB == "purelib"
+
+
+def test_site_packages_from_pyproject_modules_section(tmp_path):
+    """site_packages should be read from [tool.hwh.cython.modules], not [tool.hwh.cython]."""
+    import tomli_w
+    from hwh_backend.parser import PyProject
+
+    test_config = {
+        "project": {"name": "test-project", "version": "0.1.0"},
+        "tool": {
+            "hwh": {
+                "cython": {
+                    "site_packages": "site",
+                }
+            }
+        },
+    }
+
+    pyproject_path = tmp_path / "pyproject.toml"
+    with open(pyproject_path, "wb") as f:
+        tomli_w.dump(test_config, f)
+
+    project = PyProject(tmp_path)
+    config = project.get_hwh_config().cython
+    assert config.site_packages == SitePackages.SITE
+
+
 def test_invalid_language():
     with pytest.raises(ValueError):
         CythonConfig(language="invalid")
@@ -39,28 +69,16 @@ def test_compiler_directives_types():
         CythonCompilerDirectives(binding="not_a_bool")
 
 
-def test_cython_compiler_directives_constant_language_level():
-    # TODO: delete - no point of testing language level, since we only accept 3
-    directives = CythonCompilerDirectives()
+def test_language_level_not_user_configurable():
+    """language_level is hardcoded to 3str and should not be settable by the user."""
+    with pytest.raises(TypeError):
+        CythonCompilerDirectives(language_level="2")
 
-    # Test that language_level is constant
-    assert directives.language_level == "3"
-    with pytest.raises(AttributeError):
-        directives.language_level = "2"
 
-    # Test that as_dict() includes language_level
-    result = directives.as_dict()
-    assert "language_level" in result
-    assert result["language_level"] == "3"
-
-    # Test that private fields are not included
-    assert "_language_level" not in result
-
-    # Test that all other fields work normally
-    directives.binding = True
-    result = directives.as_dict()
-    assert result["binding"] is True
-    assert result["language_level"] == "3"  # Still present and unchanged
+def test_language_level_always_3str_in_dict():
+    """as_dict() must always include language_level=3str regardless of other directives."""
+    result = CythonCompilerDirectives().as_dict()
+    assert result["language_level"] == "3str"
 
 
 def test_library_config():

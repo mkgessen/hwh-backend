@@ -59,7 +59,7 @@ class PyProject:
 
     @property
     def metadata(self) -> StandardMetadata:
-        return StandardMetadata.from_pyproject(self.toml)
+        return StandardMetadata.from_pyproject(self.toml, allow_extra_keys=True)
 
     @property
     def runtime_dependencies(self) -> Sequence[Requirement]:

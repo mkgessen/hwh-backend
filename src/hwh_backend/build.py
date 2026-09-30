@@ -1,19 +1,17 @@
-import setuptools  # This must come before importing Cython!
 import json
 import shutil
 import site
 import sysconfig
 import warnings
 from collections.abc import Sequence
-from itertools import chain
 from importlib.metadata import distributions
+from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import setuptools  # This must come before importing Cython!
 from Cython.Build import cythonize
-from setuptools.build_meta import (
-    build_editable as _build_editable,
-)
+from setuptools.build_meta import build_editable as _build_editable
 from setuptools.command.build_ext import build_ext
 from setuptools.dist import Distribution
 from setuptools.extension import Extension
@@ -66,8 +64,6 @@ def get_sitepackages(option: SitePackages):
             return site.getsitepackages()
         case SitePackages.NONE:
             return []
-
-
 
 
 def resolve_package_path(
@@ -126,16 +122,19 @@ def _get_ext_modules(project: PyProject, config_settings: Optional[dict] = None)
     package_paths = project.get_all_package_paths()
     logger.debug(f"Package paths: {package_paths}")
 
-    pyx_paths = _collect_pyx_paths(
-        package_paths,
-        config.sources,
-        config.exclude_dirs
-    )
+    pyx_paths = _collect_pyx_paths(package_paths, config.sources, config.exclude_dirs)
 
-    linetrace =  _CONFIG_OPTIONS.get("linetrace", False)
+    linetrace = _CONFIG_OPTIONS.get("linetrace", False)
+    legacy_implicit_noexcept = _CONFIG_OPTIONS.get(
+        "legacy_implicit_noexcept", config.legacy_implicit_noexcept
+    )
     extra_compile_args = config.extra_compile_args
     if linetrace:
         extra_compile_args += ["-DCYTHON_TRACE_NOGIL=1"]
+
+    # NumPy API version macro. To stop those annoying warnings
+    if config.numpy_api_version:
+        extra_compile_args += [f"-DNPY_NO_DEPRECATED_API={config.numpy_api_version}"]
 
     # Create Extensions
     ext_modules = []
@@ -188,11 +187,15 @@ def _get_ext_modules(project: PyProject, config_settings: Optional[dict] = None)
     compiler_directives = config.compiler_directives.as_dict()
     if linetrace:
         compiler_directives["linetrace"] = True
+    if legacy_implicit_noexcept:
+        compiler_directives["legacy_implicit_noexcept"] = True
 
     logger.debug(f"\n=== FORCE = {force} ")
     logger.debug(f"\n=== ANNOTATE = {annotate} ")
     logger.debug(f"\n=== NTHREADS = {nthreads} ")
     logger.debug(f"\n=== LINETRACE = {linetrace} ")
+    logger.debug(f"\n=== LEGACY_IMPLICIT_NOEXCEPT = {legacy_implicit_noexcept} ")
+    logger.debug(f"\n=== COMPILER_DIRECTIVES = {compiler_directives} ")
 
     cythonized = cythonize(
         ext_modules,
@@ -295,6 +298,9 @@ def _parse_build_settings(config_settings: dict | None = None) -> dict[str, bool
         if config_settings.get("linetrace"):
             result["linetrace"] = True
 
+        if config_settings.get("legacy_implicit_noexcept"):
+            result["legacy_implicit_noexcept"] = True
+
     except Exception:
         logger.exception("Error parsing config settings")
         return {}
@@ -302,9 +308,7 @@ def _parse_build_settings(config_settings: dict | None = None) -> dict[str, bool
     return result
 
 
-def _build_extension(
-    inplace: bool = False, config_settings={}
-) -> dict[str, Any]:
+def _build_extension(inplace: bool = False, config_settings={}) -> dict[str, Any]:
     """Build the extension modules with better editable install handling.
 
     returns: dict of kwargs for Distribution object
@@ -340,6 +344,18 @@ def _build_extension(
     return dist_kwargs
 
 
+try:
+    from setuptools.command.bdist_wheel import bdist_wheel as _bdist_wheel
+except ImportError:
+    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+
+
+class BdistWheelCommand(_bdist_wheel):
+    def finalize_options(self):
+        super().finalize_options()
+        self.root_is_pure = False
+
+
 def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     """Build wheel with explicit editable install handling."""
 
@@ -352,7 +368,9 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     dist_kwargs = {
         "entry_points": project.entrypoints,
         "install_requires": [str(d) for d in project.runtime_dependencies],
-        "extras_require": project.toml.get("project", {}).get("optional-dependencies", None)
+        "extras_require": project.toml.get("project", {}).get(
+            "optional-dependencies", None
+        ),
     }
     if not _EXTENSIONS_BUILT:
         dist_kwargs |= _build_extension(
@@ -361,18 +379,6 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     else:
         logger.debug("Extensions already built, skipping")
 
-    from wheel.bdist_wheel import bdist_wheel as wheel_command
-
-    class BdistWheelCommand(wheel_command):
-        def finalize_options(self):
-            super().finalize_options()
-            self.root_is_pure = False
-            self.user_options = config_settings
-
-        def run(self):
-            logger.debug("Running custom bdist_wheel command")
-            super().run()
-
     # Create distribution using same config from _build_extension
     dist = Distribution(dist_kwargs)
     dist.cmdclass = {"build_ext": EditableBuildExt}
@@ -380,7 +386,10 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
 
     cmd = BdistWheelCommand(dist)
     cmd.dist_dir = wheel_directory
-    cmd.distribution.script_name = "fubar"
+    # script_name must be a valid path string; Distribution() leaves it None
+    # when constructed programmatically, causing os.path.abspath() to fail
+    # inside distutils build_py.
+    cmd.distribution.script_name = "setup.py"
     cmd.ensure_finalized()
     logger.debug("Starting wheel build")
     cmd.run()
@@ -423,7 +432,9 @@ def build_sdist(sdist_directory, config_settings=None):
     return _build_sdist(sdist_directory, config_settings)
 
 
-def _pyx_paths_from_sources(sources: Sequence[str], package_paths: Sequence[Path]) -> List[Path]:
+def _pyx_paths_from_sources(
+    sources: Sequence[str], package_paths: Sequence[Path]
+) -> List[Path]:
     logger.debug("Using explicit sources: %s", sources)
     package_paths = set(package_paths)
     pyx_paths = []
@@ -438,11 +449,15 @@ def _pyx_paths_from_sources(sources: Sequence[str], package_paths: Sequence[Path
             pyx_paths.append(pyx_path)
 
     if discarded_orphans:
-        warnings.warn("The following sources were orphaned from packages and have been ignored: "
-                        f"{discarded_orphans}")
+        warnings.warn(
+            "The following sources were orphaned from packages and have been ignored: "
+            f"{discarded_orphans}"
+        )
     if discarded_non_pyx:
-        warnings.warn("The following sources will not be cythonised as they are not .pyx files: "
-                      f"{discarded_non_pyx}")
+        warnings.warn(
+            "The following sources will not be cythonised as they are not .pyx files: "
+            f"{discarded_non_pyx}"
+        )
     return pyx_paths
 
 
@@ -459,10 +474,10 @@ def _find_cython_files(package_paths: Sequence[Path]) -> List[Path]:
         return found_pyx
 
     logger.debug("=== finding cython files ===")
-    pyx_files = list(chain.from_iterable(
-        find(pkg_path) for pkg_path in package_paths))
+    pyx_files = list(chain.from_iterable(find(pkg_path) for pkg_path in package_paths))
     logger.debug(f"Found .pyx files: {pyx_files}")
     return pyx_files
+
 
 def _exclude_extensions(pyx_paths: Sequence[Path], exclude_dirs: Sequence[str]):
     logger.debug("Using exclude dirs: %s", exclude_dirs)
@@ -481,14 +496,15 @@ def _exclude_extensions(pyx_paths: Sequence[Path], exclude_dirs: Sequence[str]):
         logger.debug("Nothing excluded")
     return included
 
+
 def _collect_pyx_paths(
-        package_paths: Sequence[Path],
-        sources: Sequence[str],
-        exclude_dirs: Sequence[str]
+    package_paths: Sequence[Path], sources: Sequence[str], exclude_dirs: Sequence[str]
 ):
-    pyx_paths = (_pyx_paths_from_sources(sources, package_paths)
-                 if sources else
-                 _find_cython_files(package_paths))
+    pyx_paths = (
+        _pyx_paths_from_sources(sources, package_paths)
+        if sources
+        else _find_cython_files(package_paths)
+    )
 
     if exclude_dirs:
         return _exclude_extensions(pyx_paths, exclude_dirs)

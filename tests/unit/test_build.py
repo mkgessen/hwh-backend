@@ -1,7 +1,9 @@
 import pytest
 from pathlib import Path
+from unittest.mock import patch
 
 from hwh_backend.build import (
+    BdistWheelCommand,
     _parse_build_settings,
     _collect_pyx_paths,
 )
@@ -79,3 +81,23 @@ def test_parse_invalid_build_settings():
 
 def test_parse_empty_build_settings():
     assert _parse_build_settings(None) == {}
+
+
+def test_bdist_wheel_command_should_not_define_run():
+    # run() only called super() — no reason to override it
+    assert "run" not in BdistWheelCommand.__dict__
+
+
+def test_bdist_wheel_command_finalize_options_should_preserve_user_options():
+    # Arrange — user_options is a class-level list of option tuples defined by wheel
+    from setuptools.dist import Distribution
+    dist = Distribution({"name": "test-pkg", "version": "0.1.0"})
+    cmd = BdistWheelCommand(dist)
+    expected_user_options = BdistWheelCommand.user_options
+
+    # Act — mock super() so we only execute our finalize_options body
+    with patch.object(BdistWheelCommand.__bases__[0], "finalize_options"):
+        cmd.finalize_options()
+
+    # Assert — user_options must not be overwritten with config_settings
+    assert cmd.user_options is expected_user_options

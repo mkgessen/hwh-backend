@@ -16,7 +16,7 @@ def create_pyproject_toml(
 [build-system]
 requires = [
     "hwh-backend @ file://{backend_dir}",
-    "Cython<3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "hwh_backend.build"
 

@@ -1,33 +1,36 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel>=0.40.0", "setuptools-scm>=8.0.0"]
+requires = ["setuptools>=69.0", "wheel>=0.40.0", "setuptools-scm>=8.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "hwh-backend"
 dynamic = ["version"]
-description = "Setuptools based backend supporting Cython extensions"
+description = "Setuptools based backend supporting Cython 3+ extensions"
 authors = [
     { name = "Mathias von Essen", email = "3090690+mkgessen@users.noreply.github.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+# WARNING: Doesn't run on 3.14
+requires-python = ">=3.12"
 license = "MIT"
 keywords = ["cython", "build", "backend", "pep517"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Cython",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
-    "setuptools>=68.0",
+    "setuptools>=69.0",
     "wheel>=0.40.0",
-    "Cython<3.0.0",
-    "pyproject-metadata>=0.7.0",
+    "Cython>=3.1.0",
+    "numpy>=2.0.0",
+    "pyproject-metadata>=0.8.0",
 ]
 
 [project.optional-dependencies]
@@ -58,7 +61,7 @@ addopts = "-v --cov=hwh_backend --cov-report=term-missing"
 
 [tool.black]
 line-length = 88
-target-version = ["py311"]
+target-version = ["py312"]
 include = '\.pyi?$'
 
 [tool.isort]
@@ -68,7 +71,7 @@ multi_line_output = 3
 include_trailing_comma = true
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -85,4 +88,4 @@ select = [
 ]
 ignore = []
 line-length = 88
-target-version = "py311"
+target-version = "py312"
