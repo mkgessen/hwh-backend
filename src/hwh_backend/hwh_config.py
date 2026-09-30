@@ -67,7 +67,7 @@ class CythonCompilerDirectives:
     def __post_init__(self):
         """Validate types and values after initialization."""
         for field_name, field_value in self.__dict__.items():
-            field_type = self.__annotations__[field_name]
+            field_type = type(self).__annotations__[field_name]
 
             # Type validation
             if get_origin(field_type) is Union:

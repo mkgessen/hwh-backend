@@ -7,9 +7,8 @@ from collections.abc import Sequence
 from importlib.metadata import distributions
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Optional
 
-import setuptools  # This must come before importing Cython!
 from Cython.Build import cythonize
 from setuptools.build_meta import build_editable as _build_editable
 from setuptools.command.build_ext import build_ext
